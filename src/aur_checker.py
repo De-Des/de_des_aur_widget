@@ -2,6 +2,7 @@
 import json
 import re
 import subprocess
+from os import name
 from typing import Dict, List
 
 
@@ -155,16 +156,54 @@ class AURChecker:
             tooltip_lines.append("Consider checking Arch news before updating")
             tooltip_lines.append("")
 
+        # Offical updates
         if self.official_updates:
             tooltip_lines.append("📦 Official Updates:")
-            for pkg in self.official_updates[:8]:  # Show first 8
-                if pkg in self.nvidia_updates:
-                    tooltip_lines.append(f"  ⚠️ {pkg} (NVIDIA)")
-                else:
-                    tooltip_lines.append(f"  • {pkg}")
+            tooltip_lines.append(f"Count:{len(self.official_updates)}")
 
-            if len(self.official_updates) > 8:
-                tooltip_lines.append(f"  ... and {len(self.official_updates) - 8} more")
+            # Show NVIDIA packages firt
+            nvidia_official = [
+                pkg for pkg in self.official_updates if pkg in self.nvidia_updates
+            ]
+            if nvidia_official:
+                tooltip_lines.append("NVIDIA packages:")
+                for pkg in nvidia_official:
+                    tooltip_lines.append(
+                        f" • {pkg["name"]}: {pkg["current"]} -> {pkg["new"]}"
+                    )
+
+            # Show first 8 official packages
+            official_pkgs = [
+                pkg for pkg in self.official_updates if pkg not in self.nvidia_updates
+            ]
+            if official_pkgs:
+                for pkg in official_pkgs[:8]:
+                    tooltip_lines.append(
+                        f" • {pkg["name"]}: {pkg["current"]} -> {pkg["new"]}"
+                    )
+
+            # Show other packages
+            other_aur = [
+                pkg for pkg in self.aur_updates if pkg not in self.nvidia_updates
+            ]
+            if other_aur:
+                if nvidia_official:
+                    tooltip_lines.append("Other packages:")
+                for pkg in other_aur[:8]:
+                    tooltip_lines.append(f" • {pkg}")
+                if len(other_aur) > 8:
+                    tooltip_lines.append(f" ...and{len(other_aur) -8} more")
+
+            # No updates available
+            if not tooltip_lines:
+                tooltip_lines.append("✅ System is up to date")
+
+            else:
+                # Add summary
+                tooltip_lines.append("")
+                tooltip_lines.append(
+                    f"📊 Total: {len(self.official_updates) + len(self.aur_updates)} updates"
+                )
 
         if self.aur_updates:
             if tooltip_lines:
