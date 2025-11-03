@@ -187,12 +187,12 @@ class AURChecker:
                 pkg for pkg in self.aur_updates if pkg not in self.nvidia_updates
             ]
             if other_aur:
-                if nvidia_official:
-                    tooltip_lines.append("Other packages:")
                 for pkg in other_aur[:8]:
-                    tooltip_lines.append(f" • {pkg}")
+                    tooltip_lines.append(
+                        f" • {pkg["name"]}: {pkg["current"]} -> {pkg["new"]}"
+                    )
                 if len(other_aur) > 8:
-                    tooltip_lines.append(f" ...and{len(other_aur) -8} more")
+                    tooltip_lines.append(f" ...and{len(other_aur) - 8} more")
 
             # No updates available
             if not tooltip_lines:
@@ -202,21 +202,9 @@ class AURChecker:
                 # Add summary
                 tooltip_lines.append("")
                 tooltip_lines.append(
-                    f"📊 Total: {len(self.official_updates) + len(self.aur_updates)} updates"
+                    f"📊 Total: {len(self.official_updates) +
+                                len(self.aur_updates)} updates"
                 )
-
-        if self.aur_updates:
-            if tooltip_lines:
-                tooltip_lines.append("")
-            tooltip_lines.append("🌟 AUR Updates:")
-            for pkg in self.aur_updates[:8]:  # Show first 8
-                if pkg in self.nvidia_updates:
-                    tooltip_lines.append(f"  ⚠️ {pkg} (NVIDIA)")
-                else:
-                    tooltip_lines.append(f"  • {pkg}")
-
-            if len(self.aur_updates) > 8:
-                tooltip_lines.append(f"  ... and {len(self.aur_updates) - 8} more")
 
         if not tooltip_lines:
             tooltip_lines.append("✅ System is up to date")
