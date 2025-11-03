@@ -2,7 +2,6 @@
 import json
 import re
 import subprocess
-from os import name
 from typing import Dict, List
 
 
@@ -70,7 +69,7 @@ class AURChecker:
                                     "name": parts[0],
                                     "current": parts[1],
                                     "new": parts[3],
-                                    "type": "official",
+                                    "type": "aur",
                                 }
                             )
         except (subprocess.CalledProcessError, FileNotFoundError):
@@ -99,7 +98,6 @@ class AURChecker:
         """Get both official and AUR updates"""
         self.get_official_updates()
         self.get_aur_updates()
-        # No updates available
 
     def get_total_updates(self) -> int:
         """Get num of all available updates"""
@@ -107,11 +105,10 @@ class AURChecker:
 
     def print_updates(self) -> None:
         """Print all available updates in a formatted way"""
+        self.get_all_updates()
         if self.official_updates:
             print("\nOfficial Repository Updates:")
-            # No updates available
             for pkg in self.official_updates:
-                # No updates available
                 print(f"  {pkg['name']}: {pkg['current']} → {pkg['new']}")
 
         if self.aur_updates:
@@ -162,9 +159,7 @@ class AURChecker:
             tooltip_lines.append(f"Count:{len(self.official_updates)}")
 
             # Show NVIDIA packages firt
-            nvidia_official = [
-                pkg for pkg in self.official_updates if pkg in self.nvidia_updates
-            ]
+            nvidia_official = [pkg for pkg in self.nvidia_updates]
             if nvidia_official:
                 tooltip_lines.append("NVIDIA packages:")
                 for pkg in nvidia_official:
@@ -191,8 +186,6 @@ class AURChecker:
                     tooltip_lines.append(
                         f" • {pkg["name"]}: {pkg["current"]} -> {pkg["new"]}"
                     )
-                if len(other_aur) > 8:
-                    tooltip_lines.append(f" ...and{len(other_aur) - 8} more")
 
             # No updates available
             if not tooltip_lines:
