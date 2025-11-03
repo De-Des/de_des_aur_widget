@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
+import json
+import re
 import subprocess
-from re import A
 from typing import Dict, List
 
 
@@ -7,6 +9,7 @@ class AURChecker:
     def __init__(self):
         self.official_updates: List[Dict] = []
         self.aur_updates: List[Dict] = []
+        self.nvidia_updates: List[Dict] = []
 
     def get_official_updates(self) -> None:
         """Get official repository package updates"""
@@ -26,8 +29,17 @@ class AURChecker:
                                 "type": "official",
                             }
                         )
+                        if self._identify_nvidia_pkg(pkg_name=parts[0]):
+                            self.nvidia_updates.append(
+                                {
+                                    "name": parts[0],
+                                    "current": parts[1],
+                                    "new": parts[3],
+                                    "type": "official",
+                                }
+                            )
+
         except subprocess.CalledProcessError:
-            # No updates available
             pass
         except Exception as e:
             print(f"Error checking official updates: {e}")
@@ -41,6 +53,7 @@ class AURChecker:
             for line in result.stdout.strip().split("\n"):
                 if line.strip():
                     parts = line.split()
+                    # No updates available
                     if len(parts) >= 4 and parts[2] == "->":
                         self.aur_updates.append(
                             {
@@ -50,25 +63,54 @@ class AURChecker:
                                 "type": "aur",
                             }
                         )
+                        if self._identify_nvidia_pkg(pkg_name=parts[0]):
+                            self.nvidia_updates.append(
+                                {
+                                    "name": parts[0],
+                                    "current": parts[1],
+                                    "new": parts[3],
+                                    "type": "official",
+                                }
+                            )
         except (subprocess.CalledProcessError, FileNotFoundError):
             # No AUR updates or yay not installed
             pass
         except Exception as e:
             print(f"Error checking AUR updates: {e}")
+            # No updates available
+
+    def _identify_nvidia_pkg(self, pkg_name: str) -> bool:
+        """check for nvidia related pkgs"""
+        nvidia_patterns = [
+            r"^nvidia$",
+            r"^nvidia-",
+            r"^nvidia-lts$",
+            r"^nvidia-dkms$",
+            r"^nvidia-utils",
+            r"^lib32-nvidia-utils",
+            r"^cuda",
+            r"^opencl-nvidia",
+            r"^nvidia-settings",
+        ]
+        return any(re.match(pattern, pkg_name) for pattern in nvidia_patterns)
 
     def get_all_updates(self) -> None:
         """Get both official and AUR updates"""
         self.get_official_updates()
         self.get_aur_updates()
+        # No updates available
 
     def get_total_updates(self) -> int:
+        """Get num of all available updates"""
         return len(self.official_updates) + len(self.aur_updates)
 
     def print_updates(self) -> None:
         """Print all available updates in a formatted way"""
         if self.official_updates:
             print("\nOfficial Repository Updates:")
+            # No updates available
             for pkg in self.official_updates:
+                # No updates available
                 print(f"  {pkg['name']}: {pkg['current']} → {pkg['new']}")
 
         if self.aur_updates:
@@ -81,47 +123,61 @@ class AURChecker:
         print(f"  - AUR: {len(self.aur_updates)}")
 
     def waybar_output(self) -> Dict:
-        """Get update and return formatted for waybar"""
+        """Get updates and return formatted for waybar"""
+        self.get_all_updates()
+        total_updates: int = self.get_total_updates()
+        # Icon based on update factors
+        if len(self.nvidia_updates) > 0:
+            icon = "⚠️"
+            css_class = "nvidia-warning"
+        elif total_updates > 0:
+            icon = "🔄"
+            css_class = "has-updates"
+        else:
+            icon = "✅"
+            css_class = "no-updates"
 
-        self.get_official_updates()
-
-        self.get_aur_updates()
-        total_updates: int = len(self.official_updates) + len(self.aur_updates)
-        # Waybar JSON output
         waybar_output = {
-            "text": f"🔄 {total_updates}",
+            "text": f"{icon}{total_updates}",
             "alt": f"Updates: {total_updates}",
             "tooltip": self._format_tooltip(),
-            "class": "has-updates" if total_updates > 0 else "no-updates",
+            "class": css_class,
         }
-
         return waybar_output
 
     def _format_tooltip(self) -> str:
         """Format tooltip with update details"""
         tooltip_lines = []
 
+        # Show NVIDIA warning first if present
+        if self.nvidia_updates:
+            tooltip_lines.append("🚨 NVIDIA DRIVER UPDATES AVAILABLE!")
+            tooltip_lines.append("Consider checking Arch news before updating")
+            tooltip_lines.append("")
+
         if self.official_updates:
             tooltip_lines.append("📦 Official Updates:")
-            tooltip_lines.extend(
-                # Show first 10
-                [f"  • {pkg}" for pkg in self.official_updates[:10]]
-            )
-            if len(self.official_updates) > 10:
-                tooltip_lines.append(
-                    f"  ... and {len(self.official_updates) - 10} more"
-                )
+            for pkg in self.official_updates[:8]:  # Show first 8
+                if pkg in self.nvidia_updates:
+                    tooltip_lines.append(f"  ⚠️ {pkg} (NVIDIA)")
+                else:
+                    tooltip_lines.append(f"  • {pkg}")
+
+            if len(self.official_updates) > 8:
+                tooltip_lines.append(f"  ... and {len(self.official_updates) - 8} more")
 
         if self.aur_updates:
             if tooltip_lines:
                 tooltip_lines.append("")
             tooltip_lines.append("🌟 AUR Updates:")
-            tooltip_lines.extend(
-                # Show first 10
-                [f"  • {pkg}" for pkg in self.aur_updates[:10]]
-            )
-            if len(self.aur_updates) > 10:
-                tooltip_lines.append(f"  ... and {len(self.aur_updates) - 10} more")
+            for pkg in self.aur_updates[:8]:  # Show first 8
+                if pkg in self.nvidia_updates:
+                    tooltip_lines.append(f"  ⚠️ {pkg} (NVIDIA)")
+                else:
+                    tooltip_lines.append(f"  • {pkg}")
+
+            if len(self.aur_updates) > 8:
+                tooltip_lines.append(f"  ... and {len(self.aur_updates) - 8} more")
 
         if not tooltip_lines:
             tooltip_lines.append("✅ System is up to date")
@@ -129,4 +185,10 @@ class AURChecker:
         return "\n".join(tooltip_lines)
 
 
+def main() -> None:
+    checker = AURChecker()
+    print(json.dumps(checker.waybar_output()))
 
+
+if __name__ == "__main__":
+    main()
