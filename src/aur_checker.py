@@ -156,8 +156,6 @@ class AURChecker:
         # Offical updates
         if self.official_updates:
             tooltip_lines.append("📦 Official Updates:")
-            tooltip_lines.append(f"Count:{len(self.official_updates)}")
-
             # Show NVIDIA packages firt
             nvidia_official = [pkg for pkg in self.nvidia_updates]
             if nvidia_official:
